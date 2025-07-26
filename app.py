@@ -1,29 +1,35 @@
 import streamlit as st
-from main import process_query  # This imports your logic
+import json
+from main import process_insurance_query
 
-st.set_page_config(page_title="🛡️ Insurance Query System", layout="wide")
-st.title("🛡️ Insurance Query Processing System")
+st.set_page_config(page_title="Insurance Query Decision System", layout="wide")
+st.title("🛡️ Insurance Eligibility Checker")
+st.markdown("Enter a natural language query to check if the procedure is eligible under your insurance policy.")
 
-st.markdown("This tool analyzes insurance queries, retrieves relevant clauses, and provides approval decisions.")
+query = st.text_area("📝 Enter your query here:", height=150)
 
-with st.form("query_form"):
-    query = st.text_area(
-        "📝 Enter your insurance query:",
-        placeholder="E.g., I am a 45-year-old male from Delhi. I want to claim for a gallbladder surgery after 6 months of policy coverage.",
-        height=200
-    )
-    submit = st.form_submit_button("🔍 Process Query")
+if st.button("🔍 Evaluate Query"):
+    if not query.strip():
+        st.warning("Please enter a query to evaluate.")
+    else:
+        with st.spinner("Processing your query..."):
+            try:
+                result = process_insurance_query(query)
+                
+                st.success("✅ Decision Completed")
 
-if submit and query.strip():
-    with st.spinner("Processing..."):
-        result = process_query(query)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("🔍 Parsed Information")
+                    st.json(result["parsed_info"])
+                with col2:
+                    st.subheader("📋 Decision")
+                    st.write(f"**Decision:** {result['decision']}")
+                    st.write(f"**Justification:** {result['justification']}")
 
-        st.subheader("🔍 Parsed Query")
-        st.json(result["Parsed Query"])
+                st.subheader("📄 Policy Clauses Retrieved")
+                for i, clause in enumerate(result["policy_clauses"], 1):
+                    st.markdown(f"**Clause {i}:** {clause}")
 
-        st.subheader("📄 Retrieved Clauses")
-        for idx, clause in enumerate(result["Top Retrieved Clauses"], 1):
-            st.markdown(f"**Clause {idx}:** {clause}")
-
-        st.subheader("✅ Decision")
-        st.json(result["Decision"])
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
