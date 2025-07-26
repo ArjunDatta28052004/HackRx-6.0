@@ -1,15 +1,34 @@
 import os
 import re
 import spacy
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader, UnstructuredWordDocumentLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.prompts import PromptTemplate
+from langchain.chains.question_answering import load_qa_chain
+from langchain.llms import HuggingFaceHub
 
-# Load the SpaCy model
+# Load spaCy model
 nlp = spacy.load("en_core_web_sm")
 
-# Load and process documents
+# Define known data
+known_procedures = [
+    "knee surgery", "back surgery", "eye surgery", "heart surgery", "brain surgery",
+    "neck surgery", "shoulder surgery", "hip replacement", "bypass surgery",
+    "dental treatment", "appendix removal", "chemotherapy", "dialysis"
+]
+known_locations = [
+    "pune", "delhi", "kolkata", "mumbai", "chennai", "bangalore", "hyderabad",
+    "lucknow", "ahmedabad", "jaipur"
+]
+
+# Load FAISS index and embedder
+def load_vector_store():
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    return FAISS.load_local("faiss_index", embeddings,allow_dangerous_deserialization=True)
+
+# Load documents
 def load_documents(file_paths):
     documents = []
     for file_path in file_paths:
@@ -22,149 +41,106 @@ def load_documents(file_paths):
         documents.extend(loader.load())
     return documents
 
-# Split documents into chunks
 def split_documents(documents):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    return text_splitter.split_documents(documents)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    return splitter.split_documents(documents)
 
-# Embed and store documents in FAISS
-def embed_and_store_documents(documents):
+def embed_documents(documents):
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_store = FAISS.from_documents(documents, embeddings)
-    return vector_store
+    return embeddings, documents
 
-# Query processing using SpaCy
-def parse_query(query):
-    doc = nlp(query)
-    parsed = {
-        "age": "N/A",
-        "gender": "N/A",
-        "procedure": "N/A",
-        "location": "N/A",
-        "policy_duration": "N/A"
-    }
+# ------------------------------------
+# 🔍 Query Parsing
+# ------------------------------------
+def parse_query(text):
+    text = text.lower()
 
-    # Extract entities using SpaCy
-    for ent in doc.ents:
-        if ent.label_ == "AGE":
-            parsed["age"] = ent.text.split()[0]
-        elif ent.label_ == "GPE":  # Geopolitical entity
-            parsed["location"] = ent.text
-        elif "month" in ent.text.lower() or "year" in ent.text.lower():
-            parsed["policy_duration"] = ent.text
+    # Age
+    age_match = re.search(r'aged\s+(\d+)|(\d+)[-\s]?year[-\s]?old|^(\d+)\s*[fm]\b|(\d+)\s*[fm]\b', text)
+    age = next((g for g in age_match.groups() if g), "N/A") if age_match else "N/A"
 
-    # ✅ Age fallback: e.g., "52-year-old"
-    if parsed["age"] == "N/A":
-        age_match = re.search(r'(\d{2})[- ]?year[- ]?old', query, re.IGNORECASE)
-        if age_match:
-            parsed["age"] = age_match.group(1)
+    # Gender
+    if re.search(r'\b(female|wife|mother|she|f\b)\b', text):
+        gender = "female"
+    elif re.search(r'\b(male|husband|father|he|m\b)\b', text):
+        gender = "male"
+    else:
+        gender = "N/A"
 
-    # ✅ Gender detection (supports F, M, female, male)
-    gender_match = re.search(r'\b(female|f|male|m)\b', query.lower())
-    if gender_match:
-        gender = gender_match.group(1)
-        if gender in ["female", "f"]:
-            parsed["gender"] = "female"
-        elif gender in ["male", "m"]:
-            parsed["gender"] = "male"
+    # Procedure
+    procedure = "N/A"
+    for proc in known_procedures:
+        if proc in text:
+            procedure = proc
+            break
+    if procedure == "N/A":
+        match = re.search(r'(knee|eye|back|heart|brain|neck|hip|shoulder|lung|spine|liver|skin)\s+(surgery|treatment)', text)
+        if match:
+            procedure = f"{match.group(1)} {match.group(2)}"
 
-    # ✅ Location fallback: "from Pune"
-    if parsed["location"] == "N/A":
-        location_match = re.search(r'from ([A-Za-z ]+)', query, re.IGNORECASE)
-        if location_match:
-            parsed["location"] = location_match.group(1).strip()
+    # Location
+    location = "N/A"
+    for loc in known_locations:
+        if loc in text:
+            location = loc.capitalize()
+            break
+    if location == "N/A":
+        loc_match = re.search(r"(in|from)\s+([a-z]+)", text)
+        if loc_match:
+            location = loc_match.group(2).capitalize()
 
-    # ✅ Procedure extraction: "back surgery", "heart operation", etc.
-    if parsed["procedure"] == "N/A":
-        proc_match = re.search(r'\b(\w+ (surgery|operation|procedure|treatment))\b', query, re.IGNORECASE)
-        if proc_match:
-            parsed["procedure"] = proc_match.group(1).strip()
-
-    return parsed
-
-
-# Semantic search
-def semantic_search(vector_store, query_embedding):
-    results = vector_store.similarity_search(query_embedding, k=5)
-    return results
-
-
-# Helper function to extract total months from policy duration text
-def extract_months(duration_text):
-    duration_text = duration_text.lower()
-    months = 0
-
-    year_match = re.search(r'(\d+)\s*year', duration_text)
-    month_match = re.search(r'(\d+)\s*month', duration_text)
-
-    if year_match:
-        months += int(year_match.group(1)) * 12
-    if month_match:
-        months += int(month_match.group(1))
-
-    return months
-
-# Decision evaluation
-def evaluate_decision(retrieved_clauses, parsed_query):
-    duration_months = extract_months(parsed_query["policy_duration"])
-
-    if "surgery" in parsed_query['procedure'].lower() and duration_months < 24:
-        return {
-            "Decision": "Rejected",
-            "Amount": "N/A",
-            "Justification": f"{parsed_query['procedure'].capitalize()} is subject to a 24-month waiting period."
-        }
+    # Policy Duration
+    duration_match = re.search(r'(\d+)\s*(months|month|years|year)', text)
+    policy_duration = f"{duration_match.group(1)} {duration_match.group(2)}" if duration_match else "N/A"
 
     return {
+        "age": age,
+        "gender": gender,
+        "procedure": procedure,
+        "location": location,
+        "policy_duration": policy_duration
+    }
+
+# ------------------------------------
+# ✅ Decision Logic
+# ------------------------------------
+def evaluate_decision(parsed_query):
+    try:
+        months = int(re.search(r'\d+', parsed_query["policy_duration"]).group())
+        if "year" in parsed_query["policy_duration"].lower():
+            months *= 12
+    except:
+        months = 0
+
+    if "surgery" in parsed_query['procedure'].lower() and months < 24:
+        return {
+            "Decision": "Rejected",
+            "Justification": f"{parsed_query['procedure'].capitalize()} is subject to a 24-month waiting period."
+        }
+    return {
         "Decision": "Approved",
-        "Amount": "10000",
         "Justification": f"{parsed_query['procedure'].capitalize()} is covered under the policy."
     }
 
-# Main function to process the query
-def process_query(query):
-    # Load documents
-    documents = load_documents(['data/BAJHLIP23020V012223.pdf', 'data/CHOTGDP23004V012223.pdf', 
-                                'data/EDLHLGA23009V012223.pdf', 'data/HDFHLIP23024V072223.pdf',
-                                'data/ICIHLIP22012V012223.pdf'])
-    
-    # Split documents into chunks
-    document_chunks = split_documents(documents)
-    
-    # Embed and store documents
-    vector_store = embed_and_store_documents(document_chunks)
-    
-    # Parse the query
-    parsed_query = parse_query(query)
-    
-    # Perform semantic search
-    retrieved_clauses = semantic_search(vector_store, query)
-    
-    # Evaluate decision
-    decision = evaluate_decision(retrieved_clauses, parsed_query)
-    
+# ------------------------------------
+# 📑 Clause Retrieval from FAISS
+# ------------------------------------
+def retrieve_clauses(query, k=2):
+    vectorstore = load_vector_store()
+    matches = vectorstore.similarity_search(query, k=k)
+    return [doc.page_content.strip() for doc in matches]
+
+# ------------------------------------
+# 🎯 Main Function: Full Pipeline
+# ------------------------------------
+def process_insurance_query(user_text):
+    parsed = parse_query(user_text)
+    decision = evaluate_decision(parsed)
+    clauses = retrieve_clauses(parsed["procedure"] or "surgery")
+
     return {
-        "Parsed Query": parsed_query,
-        "Top Retrieved Clauses": [doc.page_content for doc in retrieved_clauses],
-        "Decision": decision
+        "parsed_info": parsed,
+        "decision": decision["Decision"],
+        "justification": decision["Justification"],
+        "policy_clauses": clauses
     }
-
-
-# Example usage with user input
-# if __name__ == "__main__":
-#     print("Welcome to the Insurance Query Processing System!")
-#     while True:
-#         query = input("Please enter your query (or type 'exit' to quit): ")
-#         if query.lower() == 'exit':
-#             print("Exiting the system. Goodbye!")
-#             break
-#         response = process_query(query)
-#         print("\nParsed Query:")
-#         print(response["Parsed Query"])
-#         print("\nTop Retrieved Clauses:")
-#         for i, clause in enumerate(response["Top Retrieved Clauses"], 1):
-#             print(f"Clause {i}: {clause}\n")
-#         print("Decision:")
-#         print(response["Decision"])
-#         print("=" * 80)
-
