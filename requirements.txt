@@ -3,7 +3,8 @@ spacy
 langchain
 langchain-community
 langchain-huggingface
+sentence-transformers
+faiss-cpu
 unstructured
 pypdf
-faiss-cpu
-sentence-transformers
+python-docx
