@@ -1,4 +1,5 @@
-streamlit
+flask
+flask-cors
 spacy
 langchain
 langchain-community
@@ -7,4 +8,4 @@ sentence-transformers
 faiss-cpu
 unstructured
 pypdf
-python-docx
+gunicorn
