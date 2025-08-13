@@ -2,15 +2,18 @@ import os
 import re
 import spacy
 from langchain_community.vectorstores import FAISS
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredWordDocumentLoader
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import HuggingFaceHub
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
+# Load spaCy model (optional)
+try:
+    nlp = spacy.load("en_core_web_sm")
+except Exception:
+    nlp = None
 
 # Define known data
 known_procedures = [
@@ -24,9 +27,9 @@ known_locations = [
 ]
 
 # Load FAISS index and embedder
-def load_vector_store():
+def load_vector_store(index_dir: str = "faiss_index"):
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    return FAISS.load_local("faiss_index", embeddings,allow_dangerous_deserialization=True)
+    return FAISS.load_local(index_dir, embeddings, allow_dangerous_deserialization=True)
 
 # Load documents
 def load_documents(file_paths):
@@ -35,7 +38,7 @@ def load_documents(file_paths):
         if file_path.endswith('.pdf'):
             loader = PyPDFLoader(file_path)
         elif file_path.endswith('.docx'):
-            loader = UnstructuredWordDocumentLoader(file_path)
+            loader = Docx2txtLoader(file_path)
         else:
             continue
         documents.extend(loader.load())
@@ -130,13 +133,26 @@ def retrieve_clauses(query, k=2):
     matches = vectorstore.similarity_search(query, k=k)
     return [doc.page_content.strip() for doc in matches]
 
+def retrieve_clauses_from_index(query: str, index_dir: str, k: int = 2):
+    vectorstore = load_vector_store(index_dir)
+    matches = vectorstore.similarity_search(query, k=k)
+    return [doc.page_content.strip() for doc in matches]
+
 # ------------------------------------
 # 🎯 Main Function: Full Pipeline
 # ------------------------------------
-def process_insurance_query(user_text):
+
+def process_insurance_query(user_text, index_dir: str = "faiss_index"):
     parsed = parse_query(user_text)
     decision = evaluate_decision(parsed)
-    clauses = retrieve_clauses(parsed["procedure"] or "surgery")
+    clauses = []
+    try:
+        clauses = retrieve_clauses_from_index(parsed["procedure"] or "surgery", index_dir=index_dir)
+    except Exception:
+        try:
+            clauses = retrieve_clauses(parsed["procedure"] or "surgery")
+        except Exception:
+            clauses = []
 
     return {
         "parsed_info": parsed,

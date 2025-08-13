@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Insurance Query Processor</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 0; background: #0f172a; color: #e2e8f0; }
+    header { padding: 16px 24px; background: #111827; border-bottom: 1px solid #1f2937; }
+    main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin: 0; font-size: 20px; }
+    section { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; }
+    input, textarea, button { width: 100%; box-sizing: border-box; margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid #374151; background: #0b1220; color: #e5e7eb; }
+    button { cursor: pointer; background: #2563eb; border: none; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hidden { display: none; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #1f2937; }
+    .token { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Insurance Query Processor</h1>
+  </header>
+  <main>
+    <section id="auth">
+      <h2>Authenticate</h2>
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="email" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label>Password</label>
+          <input id="password" type="password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="registerBtn">Register</button>
+        <button id="loginBtn">Login</button>
+      </div>
+      <div>
+        <label>Access Token</label>
+        <textarea id="token" class="token" rows="3" readonly></textarea>
+      </div>
+    </section>
+
+    <section id="upload" class="hidden">
+      <h2>Upload Documents</h2>
+      <input type="file" id="files" multiple accept=".pdf,.docx" />
+      <button id="uploadBtn">Upload and Build Index</button>
+      <pre id="uploadResult"></pre>
+    </section>
+
+    <section id="query" class="hidden">
+      <h2>Run Query</h2>
+      <textarea id="queryText" rows="4" placeholder="e.g., 57-year-old male had knee surgery after 12 months"></textarea>
+      <button id="queryBtn">Submit Query</button>
+      <pre id="queryResult"></pre>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = location.origin.replace(/\/$/, '');
+
+    function setToken(token) {
+      document.getElementById('token').value = token || '';
+      if (token) {
+        document.getElementById('upload').classList.remove('hidden');
+        document.getElementById('query').classList.remove('hidden');
+      } else {
+        document.getElementById('upload').classList.add('hidden');
+        document.getElementById('query').classList.add('hidden');
+      }
+    }
+
+    async function callJson(path, body, method = 'POST') {
+      const token = document.getElementById('token').value.trim();
+      const res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(body || {})
+      });
+      const text = await res.text();
+      try { return { ok: res.ok, data: JSON.parse(text) }; } catch { return { ok: res.ok, data: text }; }
+    }
+
+    async function callForm(path, formData) {
+      const token = document.getElementById('token').value.trim();
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: formData
+      });
+      const text = await res.text();
+      try { return { ok: res.ok, data: JSON.parse(text) }; } catch { return { ok: res.ok, data: text }; }
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { ok, data } = await callJson('/auth/register', { email, password });
+      if (ok && data.access_token) setToken(data.access_token);
+      else alert(JSON.stringify(data));
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { ok, data } = await callJson('/auth/login', { email, password });
+      if (ok && data.access_token) setToken(data.access_token);
+      else alert(JSON.stringify(data));
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const files = document.getElementById('files').files;
+      const form = new FormData();
+      for (const f of files) form.append('files', f);
+      const { ok, data } = await callForm('/documents/upload', form);
+      document.getElementById('uploadResult').textContent = JSON.stringify(data, null, 2);
+      if (!ok) alert('Upload failed');
+    });
+
+    document.getElementById('queryBtn').addEventListener('click', async () => {
+      const query = document.getElementById('queryText').value;
+      const { ok, data } = await callJson('/query', { query });
+      document.getElementById('queryResult').textContent = JSON.stringify(data, null, 2);
+      if (!ok) alert('Query failed');
+    });
+  </script>
+</body>
+</html>

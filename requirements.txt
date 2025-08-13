@@ -1,5 +1,6 @@
 flask
 flask-cors
+flask-jwt-extended
 spacy
 langchain
 langchain-community
@@ -8,4 +9,6 @@ sentence-transformers
 faiss-cpu
 unstructured
 pypdf
+python-docx
+docx2txt
 gunicorn
