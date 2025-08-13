@@ -1,5 +1,10 @@
 flask
 flask-cors
+flask-sqlalchemy
+flask-login
+flask-bcrypt
+flask-jwt-extended
+werkzeug
 spacy
 langchain
 langchain-community
@@ -9,3 +14,4 @@ faiss-cpu
 unstructured
 pypdf
 gunicorn
+python-dotenv
