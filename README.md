@@ -1,137 +1,287 @@
-# 🛡️ Insurance Query Processing System
+# Insurance Query System
 
-This tool intelligently analyzes natural language insurance queries, extracts relevant details (age, gender, procedure, location, policy duration), searches insurance policy documents semantically, and provides decisions regarding claim eligibility.
+A full-stack AI-powered insurance document analysis and query processing system built with Flask (Python) and React (JavaScript).
 
----
+## Features
 
-## 📌 Features
+- **User Authentication**: Secure user registration and login system
+- **Document Management**: Upload and manage PDF/DOCX insurance documents
+- **AI-Powered Analysis**: Advanced NLP processing using spaCy and LangChain
+- **Smart Query Processing**: Natural language queries with instant responses
+- **Vector Search**: FAISS-based document retrieval system
+- **Modern UI**: Responsive React frontend with Tailwind CSS
 
-- ✅ Natural language query processing
-- ✅ Extracts key details like age, gender, procedure, etc.
-- ✅ Semantic search over policy documents using FAISS + HuggingFace embeddings
-- ✅ Automatic decision engine with justifications
-- ✅ Streamlit-based UI for interactive usage
+## System Architecture
 
----
-
-## 🗂 Project Structure
-
-```bash
-insurance-query-processor/
-│
-├── app.py # Streamlit frontend application
-├── main.py # Backend logic (embedding, parsing, decision)
-├── requirements.txt # All required Python packages
-├── README.md # Project documentation
-├── data/ # Folder containing insurance policy PDFs
-│ ├── BAJHLIP23020V012223.pdf
-│ ├── CHOTGDP23004V012223.pdf
-│ └── ...
-├── build_index.py
+```
+Frontend (React) ←→ Backend (Flask) ←→ AI Models (spaCy, LangChain, FAISS)
+                ↑                    ↑
+            Authentication      Document Processing
 ```
 
----
+## Prerequisites
 
-## 🚀 Installation and Usage
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
+- spaCy English model
 
-### ✅ Step 1: Clone the Repository
+## Installation
+
+### 1. Backend Setup
 
 ```bash
-git clone https://github.com/ArjunDatta28052004/HackRx-6.0.git
-cd HackRx-6.0
-```
-### ✅ Step 2: Install Required Packages
-#### Dependencies:
-```bash
-streamlit
-spacy
-langchain
-langchain-community
-langchain-huggingface
-sentence-transformers
-faiss-cpu
-unstructured
-pypdf
-python-docx
-```
-#### Install Them: 
-```bash
+# Install Python dependencies
 pip install -r requirements.txt
-```
-### ✅ Step 3: Download SpaCy Language Model
-```bash
+
+# Download spaCy English model
 python -m spacy download en_core_web_sm
+
+# Set environment variables
+export SECRET_KEY="your-secret-key-here"
+export FLASK_ENV=development
+
+# Run the Flask backend
+python app.py
 ```
-### ✅ Step 4: Run build_index.py
+
+The backend will run on `http://localhost:5000`
+
+### 2. Frontend Setup
+
 ```bash
-python build_index.py
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
 ```
-### ✅ Step 5: Launch the App
+
+The frontend will run on `http://localhost:3000`
+
+## Usage
+
+### 1. User Registration/Login
+- Navigate to the application
+- Register a new account or login with existing credentials
+- JWT tokens are automatically managed for authenticated requests
+
+### 2. Document Upload
+- Go to the Documents page
+- Drag and drop or click to upload PDF/DOCX files
+- Supported formats: PDF, DOCX (max 16MB)
+- Files are securely stored and processed
+
+### 3. Build Search Index
+- After uploading documents, click "Build Index"
+- This processes your documents and creates a searchable vector index
+- Once complete, documents are marked as "Processed"
+
+### 4. Query Processing
+- Navigate to the Query page
+- Enter natural language queries about insurance policies
+- Example: "A 45-year-old male from Mumbai needs knee surgery with a 2-year policy"
+- Get instant AI-powered responses with:
+  - Parsed information (age, gender, procedure, location, policy duration)
+  - Decision (approved/rejected with justification)
+  - Relevant policy clauses from your documents
+
+## API Endpoints
+
+### Authentication
+- `POST /register` - User registration
+- `POST /login` - User authentication
+
+### Documents
+- `POST /upload` - File upload (requires authentication)
+- `GET /documents` - List user documents (requires authentication)
+- `POST /build_index` - Build search index (requires authentication)
+
+### Queries
+- `POST /process_query` - Process insurance queries (requires authentication)
+
+## Technical Details
+
+### Backend Technologies
+- **Flask**: Web framework
+- **SQLAlchemy**: Database ORM
+- **Flask-Bcrypt**: Password hashing
+- **JWT**: Token-based authentication
+- **spaCy**: Natural language processing
+- **LangChain**: AI/ML framework
+- **FAISS**: Vector similarity search
+- **SQLite**: Database (can be changed to PostgreSQL/MySQL)
+
+### Frontend Technologies
+- **React 18**: UI framework
+- **React Router**: Client-side routing
+- **Tailwind CSS**: Utility-first CSS framework
+- **Axios**: HTTP client
+- **React Dropzone**: File upload component
+- **React Hot Toast**: Notifications
+
+### AI/ML Components
+- **Document Processing**: PDF/DOCX parsing and text extraction
+- **Text Chunking**: Recursive character splitting for optimal processing
+- **Embeddings**: Sentence transformers for vector representation
+- **Query Parsing**: Regex-based information extraction
+- **Decision Logic**: Rule-based insurance policy evaluation
+- **Vector Search**: Semantic similarity search across documents
+
+## File Structure
+
+```
+├── app.py                 # Flask backend application
+├── main.py               # Core insurance query logic
+├── requirements.txt      # Python dependencies
+├── frontend/            # React frontend application
+│   ├── src/
+│   │   ├── components/  # Reusable UI components
+│   │   ├── pages/       # Page components
+│   │   ├── services/    # API service functions
+│   │   ├── contexts/    # React contexts (auth)
+│   │   ├── App.js       # Main application component
+│   │   └── index.js     # Application entry point
+│   ├── public/          # Static assets
+│   └── package.json     # Node.js dependencies
+├── uploads/             # File upload directory
+└── faiss_index/         # Vector search index
+```
+
+## Security Features
+
+- **Password Hashing**: Bcrypt-based password security
+- **JWT Authentication**: Secure token-based authentication
+- **File Validation**: File type and size restrictions
+- **SQL Injection Protection**: SQLAlchemy ORM protection
+- **CORS Configuration**: Controlled cross-origin requests
+
+## Performance Features
+
+- **Vector Indexing**: Fast semantic search with FAISS
+- **Document Chunking**: Optimal text processing for large documents
+- **Lazy Loading**: Efficient document retrieval
+- **Caching**: JWT token caching and validation
+
+## Customization
+
+### Adding New Insurance Procedures
+Edit the `known_procedures` list in `main.py`:
+
+```python
+known_procedures = [
+    "knee surgery", "back surgery", "eye surgery", "heart surgery",
+    "brain surgery", "neck surgery", "shoulder surgery", "hip replacement",
+    "bypass surgery", "dental treatment", "appendix removal", 
+    "chemotherapy", "dialysis", "your_new_procedure"  # Add here
+]
+```
+
+### Adding New Locations
+Edit the `known_locations` list in `main.py`:
+
+```python
+known_locations = [
+    "pune", "delhi", "kolkata", "mumbai", "chennai", "bangalore", 
+    "hyderabad", "lucknow", "ahmedabad", "jaipur", "your_city"  # Add here
+]
+```
+
+### Modifying Decision Logic
+Edit the `evaluate_decision` function in `main.py` to implement your specific insurance policy rules.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **spaCy Model Not Found**
+   ```bash
+   python -m spacy download en_core_web_sm
+   ```
+
+2. **FAISS Index Issues**
+   - Delete the `faiss_index` directory and rebuild
+   - Ensure documents are uploaded before building index
+
+3. **File Upload Errors**
+   - Check file size (max 16MB)
+   - Ensure file format is PDF or DOCX
+   - Verify upload directory permissions
+
+4. **Authentication Issues**
+   - Clear browser localStorage
+   - Check JWT token expiration
+   - Verify backend secret key
+
+### Development Mode
+
+For development, both backend and frontend support hot reloading:
+
 ```bash
-streamlit run app.py
+# Backend (Flask)
+export FLASK_ENV=development
+python app.py
+
+# Frontend (React)
+npm start
 ```
 
+## Deployment
 
-## 🧪 Example Query
-```bash
-A 57-year-old male underwent knee surgery after 12 months
-```
-### Parsed Output:
-```bash
-{
-"age":"57"
-"gender":"male"
-"procedure":"knee surgery"
-"location":"N/A"
-"policy_duration":"12 months"
-}
-```
+### Production Considerations
 
-### Decision Output:
-```bash
-Decision: Rejected
+1. **Environment Variables**
+   - Set strong `SECRET_KEY`
+   - Configure production database
+   - Set `FLASK_ENV=production`
 
-Justification: Knee surgery is subject to a 24-month waiting period.
-```
+2. **Database**
+   - Use PostgreSQL or MySQL for production
+   - Implement database migrations
+   - Regular backups
 
-### Policy Clauses Retrieved
-```bash
-Clause 1: 75 Rotational Arc Therapy 275 Testicular biopsy
-76 Tele gamma therapy 276 laparoscopic cardiomyotomy( Hellers) 77 FSRT-Fractionated SRT 277 Sentinel node biopsy malignant melanoma 78 VMAT-Volumetric Modulated Arc Therapy 278 laparoscopic pyloromyotomy( Ramstedt) 79 SBRT-Stereotactic Body Radiotherapy Orthopedics 80 Helical Tomotherapy 279 Arthroscopic Repair of ACL tear knee 81 SRS-Stereotactic Radiosurgery 280 Closed reduction of minor Fractures 82 X-Knife SRS 281 Arthroscopic repair of PCL tear knee 83 Gammaknife SRS 282 Tendon shortening 84 TBI- Total Body Radiotherapy 283 Arthroscopic Meniscectomy - Knee 85 intraluminal Brachytherapy 284 Treatment of clavicle dislocation 86 Electron Therapy 285 Arthroscopic meniscus repair 87 TSET-Total Electron Skin Therapy 286 Haemarthrosis knee- lavage 88 Extracorporeal Irradiation of Blood Products 287 Abscess knee joint drainage
-89 Telecobalt Therapy 288 Carpal tunnel release
+3. **File Storage**
+   - Use cloud storage (AWS S3, Google Cloud Storage)
+   - Implement CDN for better performance
 
-Clause 2: 88 Extracorporeal Irradiation of Blood Products 287 Abscess knee joint drainage
-89 Telecobalt Therapy 288 Carpal tunnel release 90 Telecesium Therapy 289 Closed reduction of minor dislocation 91 External mould Brachytherapy 290 Repair of knee cap tendon 92 Interstitial Brachytherapy 291 ORIF with K wire fixation- small bones 93 Intracavity Brachytherapy 292 Release of midfoot joint 94 3D Brachytherapy 293 ORIF with plating- Small long bones 95 Implant Brachytherapy 294 Implant removal minor 96 Intravesical Brachytherapy 295 K wire removal 97 Adjuvant Radiotherapy 296 POP application 98 Afterloading Catheter Brachytherapy 297 Closed reduction and external fixation 99 Conditioning Radiothearpy for BMT 298 Arthrotomy Hip joint
-100 Extracorporeal Irradiation to the Homologous Bone grafts 299 Syme's amputation 101 Radical chemotherapy 300 Arthroplasty 102 Neoadjuvant radiotherapy 301 Partial removal of rib
-```
+4. **Security**
+   - HTTPS enforcement
+   - Rate limiting
+   - Input validation
+   - Regular security updates
 
-## 🧠 How It Works
+## Contributing
 
-1. User enters a natural language insurance query.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-2. Query is parsed with SpaCy to extract:
+## License
 
-    2.1 Age
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-    2.2 Gender
+## Support
 
-    2.3 Medical Procedure
+For support and questions:
+- Check the troubleshooting section
+- Review the code comments
+- Open an issue on GitHub
 
-    2.4 Location
+## Roadmap
 
-    2.5 Policy Duration
-
-3. Preloaded insurance policy documents are embedded using sentence-transformers and indexed with FAISS.
-
-4. The query is semantically matched to the top relevant policy clauses.
-
-5. A rule-based engine evaluates if the procedure is eligible based on extracted details.
-
-6. The system returns a structured JSON response including:
-
-    6.1 Decision (Approved/Rejected)
-
-    6.2 Justification (referencing policy clause logic)
+- [ ] Multi-language support
+- [ ] Advanced analytics dashboard
+- [ ] Batch document processing
+- [ ] API rate limiting
+- [ ] User roles and permissions
+- [ ] Document versioning
+- [ ] Export functionality
+- [ ] Mobile app
 
 
 
